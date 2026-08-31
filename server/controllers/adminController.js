@@ -75,6 +75,22 @@ const setUserStatus = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user });
 });
 
+// GET /api/admin/users — Super Admin directory: every user in the system,
+// grouped by role (spec addition: "super admin should be able to see all
+// the users categorized by their roles"). Sorted within each group by name
+// so the list reads consistently regardless of creation order.
+const listAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find().sort({ role: 1, name: 1 });
+
+  const grouped = users.reduce((acc, u) => {
+    if (!acc[u.role]) acc[u.role] = [];
+    acc[u.role].push(u);
+    return acc;
+  }, {});
+
+  res.json({ success: true, data: grouped, total: users.length });
+});
+
 // GET /api/admin/audit-logs — Super Admin full oversight (spec §4 RESOLVED #1).
 // Merges report status-change history AND login events (success + failed
 // attempts) into one feed sorted by time, so "who did what" and "who
@@ -140,4 +156,4 @@ const getAuditLogs = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { createStaffUser, listPendingUsers, approveUser, setUserStatus, getAuditLogs };
+module.exports = { createStaffUser, listPendingUsers, listAllUsers, approveUser, setUserStatus, getAuditLogs };

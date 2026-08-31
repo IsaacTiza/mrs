@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { FACULTIES, FACULTY_OPTIONS } from '../invigilator/academicOptions';
+import RoleTag from '../../components/RoleTag';
+
+// Display order for the user-directory groups below — same role set the
+// Create Staff form uses, plus invigilator/student who aren't admin-created
+// but still show up in the directory once they exist.
+const ROLE_ORDER = [
+  'super_admin',
+  'senate_president',
+  'senate_board',
+  'registry_officer',
+  'college_officer',
+  'exam_officer',
+  'invigilator',
+  'student',
+];
 
 const ROLES = [
   { value: 'exam_officer', label: 'Exam Officer' },
@@ -27,6 +42,12 @@ export default function AdminPanel() {
   const [notice, setNotice] = useState('');
   const [staffForm, setStaffForm] = useState({ name: '', email: '', password: '', role: 'exam_officer', department: '', college: '' });
   const [busy, setBusy] = useState(false);
+  const [allUsers, setAllUsers] = useState(null);
+
+  function loadAllUsers() {
+    api.get('/admin/users').then(setAllUsers).catch((e) => setError(e.message));
+  }
+  useEffect(loadAllUsers, []);
 
   function updateRole(role) {
     // Department only means anything for an Exam Officer, college only for
@@ -50,6 +71,7 @@ export default function AdminPanel() {
     try {
       await api.patch(`/admin/users/${userId}/approve`, {});
       loadPending();
+      loadAllUsers();
     } catch (e) {
       setError(e.message);
     }
@@ -68,6 +90,7 @@ export default function AdminPanel() {
       await api.post('/admin/users', staffForm);
       setNotice(`${staffForm.name} created and active.`);
       setStaffForm({ name: '', email: '', password: '', role: 'exam_officer', department: '', college: '' });
+      loadAllUsers();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -148,6 +171,59 @@ export default function AdminPanel() {
           </div>
           <button className="btn" disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
         </form>
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <h2 style={{ fontSize: '1rem', marginTop: 0 }}>All Users by Role</h2>
+        {!allUsers ? (
+          <p className="empty-state">Loading…</p>
+        ) : Object.keys(allUsers).length === 0 ? (
+          <p className="empty-state">No users found.</p>
+        ) : (
+          ROLE_ORDER.filter((role) => allUsers[role]?.length).map((role) => (
+            <div key={role} style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <RoleTag role={role} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--ink-soft)' }}>
+                  {allUsers[role].length} {allUsers[role].length === 1 ? 'user' : 'users'}
+                </span>
+              </div>
+              {allUsers[role].map((u) => (
+                <div
+                  key={u._id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 0',
+                    borderBottom: '1px solid var(--line)',
+                  }}
+                >
+                  <div>
+                    <div>{u.name}</div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--ink-soft)' }}>
+                      {u.email}
+                      {u.department ? ` · ${u.department}` : ''}
+                      {u.college ? ` · ${u.college}` : ''}
+                    </div>
+                  </div>
+                  <span
+                    className="stamp"
+                    style={
+                      u.status === 'active'
+                        ? { background: 'var(--status-verdict-bg)', color: 'var(--status-verdict-fg)' }
+                        : u.status === 'disabled'
+                        ? { background: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)' }
+                        : { background: 'var(--status-review-bg)', color: 'var(--status-review-fg)' }
+                    }
+                  >
+                    {u.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

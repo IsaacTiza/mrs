@@ -2,6 +2,7 @@ const express = require('express');
 const {
   createStaffUser,
   listPendingUsers,
+  listAllUsers,
   approveUser,
   setUserStatus,
   getAuditLogs,
@@ -14,6 +15,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/users', requirePermission('MANAGE_USERS'), createStaffUser);
+router.get('/users', requirePermission('MANAGE_USERS'), listAllUsers);
 router.get('/users/pending', requirePermission('APPROVE_REGISTRATION'), listPendingUsers);
 router.patch('/users/:userId/approve', requirePermission('APPROVE_REGISTRATION'), approveUser);
 router.patch('/users/:userId/status', requirePermission('MANAGE_USERS'), setUserStatus);

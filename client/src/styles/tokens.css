@@ -25,6 +25,18 @@
   --status-closed-bg: #e3e5e2; --status-closed-fg: #374137;
   --status-danger-bg: #fbe1e1; --status-danger-fg: #a33d3d;
 
+  /* Role chips — one pastel per role, super admin panel's user directory.
+     Distinct hue per role (not reused from status chips) so "role" and
+     "case status" are never visually confusable in the same UI. */
+  --role-invigilator-bg: #e3edfb; --role-invigilator-fg: #2f5fa3;
+  --role-exam-officer-bg: #fbedd2; --role-exam-officer-fg: #92660e;
+  --role-college-officer-bg: #fde3ef; --role-college-officer-fg: #a33d78;
+  --role-registry-officer-bg: #e1f5f0; --role-registry-officer-fg: #1c7a63;
+  --role-senate-board-bg: #e8e2f6; --role-senate-board-fg: #5b4b8a;
+  --role-senate-president-bg: #f6e2e2; --role-senate-president-fg: #a33d3d;
+  --role-super-admin-bg: #dcefe1; --role-super-admin-fg: #1f7a46;
+  --role-student-bg: #eceeec; --role-student-fg: #6b7280;
+
   /* Type — one clean geometric sans for both display and body (the
      reference uses no serif anywhere); mono kept only as a utility for
      case references and timestamps, a functional carryover, not decoration */
