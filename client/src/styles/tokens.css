@@ -1,0 +1,39 @@
+:root {
+  /* Color — pulled from the reference dashboard: deep forest green as the
+     single brand color (sidebar active state, primary buttons, chart
+     bars), white cards on a soft off-white canvas, pastel chip colors
+     reserved for status meaning. No serif, no brass — this replaces the
+     earlier "records office" direction with the reference's clean
+     fintech-admin language. */
+  --brand: #1b3324;
+  --brand-dark: #142719;
+  --brand-soft: rgba(27, 51, 36, 0.08);
+  --ink: #1f2a24;
+  --ink-soft: #6b776e;
+  --paper: #f4f5f1;
+  --paper-raised: #ffffff;
+  --line: #e5e7e0;
+  --accent: var(--brand);
+  --accent-ink: #ffffff;
+
+  /* Status chips — soft pastel background + saturated text, matching the
+     "Completed / In Progress / Pending" pill style in the reference */
+  --status-submitted-bg: #eceeec; --status-submitted-fg: #6b7280;
+  --status-review-bg: #fbedd2; --status-review-fg: #92660e;
+  --status-senate-bg: #e8e2f6; --status-senate-fg: #5b4b8a;
+  --status-verdict-bg: #dcefe1; --status-verdict-fg: #1f7a46;
+  --status-closed-bg: #e3e5e2; --status-closed-fg: #374137;
+  --status-danger-bg: #fbe1e1; --status-danger-fg: #a33d3d;
+
+  /* Type — one clean geometric sans for both display and body (the
+     reference uses no serif anywhere); mono kept only as a utility for
+     case references and timestamps, a functional carryover, not decoration */
+  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius: 14px;
+  --radius-pill: 999px;
+  --radius-sm: 8px;
+  --shadow-card: 0 1px 2px rgba(20, 39, 25, 0.05), 0 8px 24px rgba(20, 39, 25, 0.06);
+}

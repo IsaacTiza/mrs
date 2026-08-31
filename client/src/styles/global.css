@@ -1,0 +1,489 @@
+@import './tokens.css';
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--brand-dark);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, .display { font-family: var(--font-display); font-weight: 700; }
+.mono { font-family: var(--font-mono); letter-spacing: 0.01em; }
+
+a { color: inherit; }
+button, input, select, textarea { font-family: inherit; font-size: 1rem; }
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ---------- App shell — the whole app floats as a rounded white/paper
+   panel over a deep green canvas, echoing the reference's framed-dashboard
+   look (signature element) ---------- */
+body { padding: 18px; }
+.app-shell {
+  display: flex;
+  /* Was `min-height` — a MINIMUM lets the flex row grow taller than the
+     viewport to fit long page content (e.g. years of audit-log rows),
+     which meant the *whole page* scrolled instead of just `.content`.
+     That dragged `.nav-rail` (and the notification/sign-out controls
+     inside it) down and off-screen along with everything else, since
+     `.content`'s own `overflow-y: auto` below never got a chance to
+     kick in — its parent was never actually clipped to a fixed size.
+     `height` (+ `max-height` as a belt-and-braces backstop for any
+     browser quirk around percentage/vh flex-basis) pins the shell to
+     the viewport instead, so `.content` scrolls internally and the
+     sidebar — notifications, sign out, nav links — stays fixed in
+     place no matter how long the page content underneath it gets. */
+  height: calc(100vh - 36px);
+  max-height: calc(100vh - 36px);
+  background: var(--paper);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.nav-rail {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--paper-raised);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 26px 18px;
+  /* Independent scroll region for the nav links themselves, in case the
+     role's link list ever outgrows the viewport on a very short screen
+     — keeps the notification/sign-out controls pinned via the existing
+     `margin-top: auto` below instead of also being pushed off-screen. */
+  overflow-y: auto;
+}
+.nav-rail .brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  line-height: 1.3;
+  color: var(--ink);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-rail .brand::before {
+  content: '';
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  background: var(--brand);
+  flex-shrink: 0;
+}
+.nav-rail .brand small {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.nav-rail .role-tag {
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  background: var(--brand-soft);
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 14px 0 26px;
+  width: fit-content;
+}
+.nav-rail nav { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.nav-rail nav a {
+  text-decoration: none;
+  color: var(--ink-soft);
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.nav-rail nav a:hover { background: var(--brand-soft); color: var(--ink); }
+.nav-rail nav a.active { background: var(--brand); color: #fff; }
+.nav-rail .logout {
+  margin-top: auto;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font-weight: 500;
+}
+.nav-rail .logout:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+.content { flex: 1; padding: 32px 40px; max-width: 1100px; overflow-y: auto; }
+
+/* ---------- Cards / tables ---------- */
+.card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 26px;
+}
+
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 10px;
+}
+.data-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+.data-table tr:hover td { background: var(--brand-soft); }
+
+/* ---------- Status chip (pastel pill, matching reference) ---------- */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+}
+
+/* ---------- Case file tab strip ---------- */
+.case-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.case-ref { font-family: var(--font-mono); color: var(--ink-soft); font-size: 0.85rem; }
+.case-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--paper);
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  margin: 20px 0 22px;
+  width: fit-content;
+}
+.case-tabs button {
+  background: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 8px 15px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.case-tabs button .tab-no {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+.case-tabs button.active { color: #fff; background: var(--brand); font-weight: 600; }
+.case-tabs button.active .tab-no { color: #fff; opacity: 0.8; }
+
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 26px; }
+.field-grid.full { grid-template-columns: 1fr; }
+.field-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin-bottom: 3px; font-weight: 600; }
+.field-value { font-size: 0.95rem; }
+
+/* ---------- Forms ---------- */
+.form-row { margin-bottom: 16px; }
+.form-row label { display: block; font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 6px; font-weight: 500; }
+.form-row input, .form-row select, .form-row textarea {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
+}
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+  border-color: var(--brand);
+}
+.form-row textarea { min-height: 96px; resize: vertical; }
+.checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.checkbox-row input { width: auto; }
+
+.repeatable-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--paper);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 20px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: var(--accent-ink);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.btn:hover:not(:disabled) { background: var(--brand-dark); border-color: var(--brand-dark); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.secondary { background: #fff; color: var(--ink); border-color: var(--line); }
+.btn.secondary:hover:not(:disabled) { background: var(--paper); }
+.btn.danger { background: var(--status-danger-fg); border-color: var(--status-danger-fg); }
+
+.wizard-steps {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.wizard-steps span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  color: var(--ink-soft);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+}
+.wizard-steps span.current { background: var(--brand); color: #fff; border-color: var(--brand); }
+.wizard-steps span.done { background: var(--status-verdict-bg); color: var(--status-verdict-fg); border-color: transparent; }
+
+.error-banner {
+  background: var(--status-danger-bg);
+  border: 1px solid transparent;
+  color: var(--status-danger-fg);
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.notice-banner {
+  background: var(--status-verdict-bg);
+  color: var(--status-verdict-fg);
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.page-title { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 24px; }
+.page-title h1 { font-size: 1.5rem; margin: 0; }
+.empty-state { color: var(--ink-soft); font-size: 0.92rem; padding: 32px 0; text-align: center; }
+
+/* ---------- Confirmation modal — for actions serious enough to need an
+   explicit "are you sure", e.g. passing a verdict, instead of an inline
+   banner that reads like a routine validation error. ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 39, 25, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-card {
+  background: var(--paper-raised);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 24px 28px;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+}
+
+/* ---------- Report list rows (ReportListTable.jsx) — a 4-column grid on
+   desktop; the small uppercase .rlt-label spans are hidden here and only
+   switched on by the mobile breakpoint below, where the header row
+   disappears and each row needs its own inline labels instead. ---------- */
+.rlt-header, .rlt-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 120px 160px;
+  gap: 10px;
+  align-items: center;
+}
+.rlt-header {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.rlt-row {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: var(--ink);
+}
+.rlt-label { display: none; }
+
+/* ---------- Mobile nav (hamburger + off-canvas drawer) — hidden
+   entirely above the breakpoint, where the sidebar is already always
+   visible and fixed in place (see .app-shell height fix above). ---------- */
+.mobile-topbar { display: none; }
+.nav-backdrop { display: none; }
+
+/* =====================================================================
+   RESPONSIVE — small/narrow screens (phones, small tablets in portrait).
+   Single breakpoint covers the structural changes; a couple of
+   fine-tuning tweaks kick in again at 420px for the smallest phones.
+   ===================================================================== */
+@media (max-width: 860px) {
+  /* The floating rounded-card shell makes sense with room to spare
+     around it on desktop; on a phone it just wastes precious width/
+     height, so go edge-to-edge instead. */
+  body { padding: 0; }
+  .app-shell {
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Sidebar becomes an off-canvas drawer instead of a persistent
+     column — flush against the shell's edge, slid fully off-screen by
+     default and slid in via a class toggled from Layout.jsx's
+     hamburger button. Kept in the DOM either way (not conditionally
+     rendered) so its one NotificationBell instance never unmounts/
+     remounts and re-fetches when the drawer opens and closes. */
+  .nav-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 110;
+    width: 260px;
+    max-width: 82vw;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.25);
+  }
+  .nav-rail.open { transform: translateX(0); }
+
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 39, 25, 0.45);
+    z-index: 105;
+  }
+
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper-raised);
+    flex-shrink: 0;
+  }
+  .mobile-topbar-brand {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--ink);
+  }
+  .hamburger-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .hamburger-btn span {
+    display: block;
+    height: 2px;
+    margin: 0 8px;
+    background: var(--ink);
+    border-radius: 1px;
+  }
+
+  /* .app-shell was a row (sidebar + content) — on mobile the sidebar is
+     no longer in normal flow (it's `position: fixed` above), so the
+     shell just needs to stack the topbar over the content area. */
+  .app-shell { flex-direction: column; }
+  .content { padding: 20px 16px; max-width: none; }
+
+  /* Two-column form/detail grids don't have room to stay side-by-side
+     on a phone-width screen — stack to one column, same as a narrow
+     desktop window would already need. */
+  .field-grid, .checkbox-grid { grid-template-columns: 1fr; }
+
+  /* Case header (course code + status pill) side-by-side reads cramped
+     under ~360-400px real width — stack instead. */
+  .case-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Tab strip: scrolling horizontally keeps every tab a normal size and
+     one tap away, instead of wrapping into 2-3 rows and eating a big
+     chunk of the limited vertical space on a phone. */
+  .case-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    width: auto;
+  }
+  .case-tabs button { flex-shrink: 0; }
+
+  /* Report list rows: the fixed 4-column grid (built for a desktop-width
+     row) has no room on a phone — switch each row to a stacked block
+     with its own inline label per field instead of relying on the
+     (now-hidden) shared header row for context. */
+  .rlt-header { display: none; }
+  .rlt-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 14px 10px;
+  }
+  .rlt-label {
+    display: inline-block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin-right: 6px;
+  }
+
+  .modal-card { width: 100%; padding: 20px; }
+  .page-title { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
+
+/* Smallest phones — a couple of extra tweaks so nothing feels oversized
+   or cramped once the layout is already down to one column. */
+@media (max-width: 420px) {
+  .content { padding: 16px 12px; }
+  .card { padding: 18px; }
+  .btn { padding: 10px 16px; font-size: 0.86rem; }
+  .mobile-topbar-brand { font-size: 0.95rem; }
+}
+
