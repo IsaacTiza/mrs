@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { FACULTIES, FACULTY_OPTIONS } from '../invigilator/academicOptions';
 import RoleTag from '../../components/RoleTag';
+import Modal from '../../components/Modal';
 
 // Display order for the user-directory groups below — same role set the
 // Create Staff form uses, plus invigilator/student who aren't admin-created
@@ -43,11 +44,103 @@ export default function AdminPanel() {
   const [staffForm, setStaffForm] = useState({ name: '', email: '', password: '', role: 'exam_officer', department: '', college: '' });
   const [busy, setBusy] = useState(false);
   const [allUsers, setAllUsers] = useState(null);
+  const [rowError, setRowError] = useState('');
+  const [rowNotice, setRowNotice] = useState('');
+  const [rowBusy, setRowBusy] = useState(false);
+
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+
+  const [resettingUser, setResettingUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
 
   function loadAllUsers() {
     api.get('/admin/users').then(setAllUsers).catch((e) => setError(e.message));
   }
   useEffect(loadAllUsers, []);
+
+  // Role can only be reassigned between the admin-creatable staff roles
+  // (the ROLES list above) — an invigilator or student account was never
+  // created here, so its edit form doesn't offer a role change at all,
+  // matching the server-side guard in updateUser.
+  function isStaffRole(role) {
+    return ROLES.some((r) => r.value === role);
+  }
+
+  function openEdit(user) {
+    setRowError('');
+    setRowNotice('');
+    setEditingUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department || '',
+      college: user.college || '',
+    });
+  }
+
+  async function saveEdit() {
+    setRowError('');
+    setRowBusy(true);
+    try {
+      await api.patch(`/admin/users/${editingUser._id}`, editForm);
+      setEditingUser(null);
+      setRowNotice(`${editForm.name} updated.`);
+      loadAllUsers();
+    } catch (e) {
+      setRowError(e.message);
+    } finally {
+      setRowBusy(false);
+    }
+  }
+
+  function openReset(user) {
+    setRowError('');
+    setRowNotice('');
+    setNewPassword('');
+    setResettingUser(user);
+  }
+
+  // Convenience for the "forgot their password" case — generates a
+  // random 10-character temp password the admin can hand to the user,
+  // instead of the admin having to invent one on the spot.
+  function generatePassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let out = '';
+    for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    setNewPassword(out);
+  }
+
+  async function submitReset() {
+    if (newPassword.length < 8) {
+      setRowError('Password must be at least 8 characters');
+      return;
+    }
+    setRowError('');
+    setRowBusy(true);
+    try {
+      await api.patch(`/admin/users/${resettingUser._id}/reset-password`, { newPassword });
+      setRowNotice(`Password reset for ${resettingUser.name}. Share the new password with them securely: ${newPassword}`);
+      setResettingUser(null);
+    } catch (e) {
+      setRowError(e.message);
+    } finally {
+      setRowBusy(false);
+    }
+  }
+
+  async function toggleStatus(user) {
+    setRowError('');
+    setRowNotice('');
+    const nextStatus = user.status === 'active' ? 'disabled' : 'active';
+    try {
+      await api.patch(`/admin/users/${user._id}/status`, { status: nextStatus });
+      loadAllUsers();
+    } catch (e) {
+      setRowError(e.message);
+    }
+  }
 
   function updateRole(role) {
     // Department only means anything for an Exam Officer, college only for
@@ -175,6 +268,8 @@ export default function AdminPanel() {
 
       <div className="card" style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: '1rem', marginTop: 0 }}>All Users by Role</h2>
+        {rowError && <div className="error-banner">{rowError}</div>}
+        {rowNotice && <div className="notice-banner">{rowNotice}</div>}
         {!allUsers ? (
           <p className="empty-state">Loading…</p>
         ) : Object.keys(allUsers).length === 0 ? (
@@ -197,6 +292,7 @@ export default function AdminPanel() {
                     alignItems: 'center',
                     padding: '8px 0',
                     borderBottom: '1px solid var(--line)',
+                    gap: 12,
                   }}
                 >
                   <div>
@@ -207,24 +303,129 @@ export default function AdminPanel() {
                       {u.college ? ` · ${u.college}` : ''}
                     </div>
                   </div>
-                  <span
-                    className="stamp"
-                    style={
-                      u.status === 'active'
-                        ? { background: 'var(--status-verdict-bg)', color: 'var(--status-verdict-fg)' }
-                        : u.status === 'disabled'
-                        ? { background: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)' }
-                        : { background: 'var(--status-review-bg)', color: 'var(--status-review-fg)' }
-                    }
-                  >
-                    {u.status}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span
+                      className="stamp"
+                      style={
+                        u.status === 'active'
+                          ? { background: 'var(--status-verdict-bg)', color: 'var(--status-verdict-fg)' }
+                          : u.status === 'disabled'
+                          ? { background: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)' }
+                          : { background: 'var(--status-review-bg)', color: 'var(--status-review-fg)' }
+                      }
+                    >
+                      {u.status}
+                    </span>
+                    <button className="btn secondary" style={{ padding: '5px 10px', fontSize: '0.78rem' }} onClick={() => openEdit(u)}>
+                      Edit
+                    </button>
+                    <button className="btn secondary" style={{ padding: '5px 10px', fontSize: '0.78rem' }} onClick={() => openReset(u)}>
+                      Reset password
+                    </button>
+                    {u.status !== 'pending_approval' && (
+                      <button
+                        className={u.status === 'active' ? 'btn danger' : 'btn secondary'}
+                        style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+                        onClick={() => toggleStatus(u)}
+                      >
+                        {u.status === 'active' ? 'Disable' : 'Activate'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           ))
         )}
       </div>
+
+      {editingUser && editForm && (
+        <Modal
+          title={`Edit ${editingUser.name}`}
+          confirmLabel={rowBusy ? 'Saving…' : 'Save changes'}
+          onConfirm={saveEdit}
+          onCancel={() => setEditingUser(null)}
+          busy={rowBusy}
+        >
+          {rowError && <div className="error-banner" style={{ marginBottom: 12 }}>{rowError}</div>}
+          <div className="form-row">
+            <label>Name</label>
+            <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
+          </div>
+          <div className="form-row">
+            <label>Email</label>
+            <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} required />
+          </div>
+          {isStaffRole(editingUser.role) && (
+            <div className="form-row">
+              <label>Role</label>
+              <select
+                value={editForm.role}
+                onChange={(e) => {
+                  const role = e.target.value;
+                  setEditForm((f) => ({
+                    ...f,
+                    role,
+                    department: role === 'exam_officer' ? f.department : '',
+                    college: role === 'college_officer' ? f.college : '',
+                  }));
+                }}
+              >
+                {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </div>
+          )}
+          {isStaffRole(editingUser.role) && editForm.role === 'exam_officer' && (
+            <div className="form-row">
+              <label>Department</label>
+              <select value={editForm.department} onChange={(e) => setEditForm((f) => ({ ...f, department: e.target.value }))}>
+                <option value="">Unscoped (all departments)</option>
+                {ALL_DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          )}
+          {isStaffRole(editingUser.role) && editForm.role === 'college_officer' && (
+            <div className="form-row">
+              <label>College</label>
+              <select value={editForm.college} onChange={(e) => setEditForm((f) => ({ ...f, college: e.target.value }))}>
+                <option value="">All colleges (unscoped)</option>
+                {FACULTY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {resettingUser && (
+        <Modal
+          title={`Reset password — ${resettingUser.name}`}
+          confirmLabel={rowBusy ? 'Resetting…' : 'Set new password'}
+          onConfirm={submitReset}
+          onCancel={() => setResettingUser(null)}
+          busy={rowBusy}
+        >
+          {rowError && <div className="error-banner" style={{ marginBottom: 12 }}>{rowError}</div>}
+          <p style={{ marginTop: 0 }}>
+            Set a new password for {resettingUser.email}. Share it with them directly — there's no
+            reset-link email flow, so this is the only way they get back in.
+          </p>
+          <div className="form-row">
+            <label>New password</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={8}
+                required
+                style={{ flex: 1 }}
+              />
+              <button type="button" className="btn secondary" onClick={generatePassword}>
+                Generate
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ const {
   listAllUsers,
   approveUser,
   setUserStatus,
+  updateUser,
+  resetUserPassword,
   getAuditLogs,
 } = require('../controllers/adminController');
 const { protect } = require('../middleware/auth');
@@ -19,6 +21,8 @@ router.get('/users', requirePermission('MANAGE_USERS'), listAllUsers);
 router.get('/users/pending', requirePermission('APPROVE_REGISTRATION'), listPendingUsers);
 router.patch('/users/:userId/approve', requirePermission('APPROVE_REGISTRATION'), approveUser);
 router.patch('/users/:userId/status', requirePermission('MANAGE_USERS'), setUserStatus);
+router.patch('/users/:userId', requirePermission('MANAGE_USERS'), updateUser);
+router.patch('/users/:userId/reset-password', requirePermission('MANAGE_USERS'), resetUserPassword);
 router.get('/audit-logs', requirePermission('VIEW_ALL_REPORTS'), getAuditLogs);
 
 module.exports = router;

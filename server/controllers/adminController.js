@@ -75,6 +75,73 @@ const setUserStatus = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user });
 });
 
+// PATCH /api/admin/users/:userId — edit an existing user's profile fields.
+// Deliberately does NOT touch password (see resetUserPassword below) or
+// status (see setUserStatus above) — each of those is its own endpoint
+// with its own guard rails, so this one only ever changes identity/
+// assignment fields.
+const updateUser = asyncHandler(async (req, res) => {
+  const { name, email, role, department, college } = req.body;
+  const user = await User.findById(req.params.userId);
+  if (!user) throw new AppError('User not found', 404);
+
+  if (email && email.toLowerCase() !== user.email) {
+    const existing = await User.findOne({ email: email.toLowerCase(), _id: { $ne: user._id } });
+    if (existing) throw new AppError('An account with this email already exists', 409);
+    user.email = email;
+  }
+  if (name) user.name = name;
+
+  // Role reassignment only makes sense between the admin-creatable staff
+  // roles (same set createStaffUser gates on) — invigilator/student
+  // accounts are self-registered or auto-created by the report flow, not
+  // roles an admin should be able to swap someone into or out of here.
+  if (role && role !== user.role) {
+    if (!ADMIN_CREATABLE_ROLES.includes(role) || !ADMIN_CREATABLE_ROLES.includes(user.role)) {
+      throw new AppError(
+        `role can only be changed between: ${ADMIN_CREATABLE_ROLES.join(', ')}`,
+        400
+      );
+    }
+    user.role = role;
+  }
+
+  // Same clearing rule as createStaffUser: department only means anything
+  // for an Exam Officer, college only for a College Officer. This has to
+  // be driven by the user's FINAL role (after any change above), and
+  // applied unconditionally on every save — not only when the caller
+  // happens to also pass `department`/`college` in this request — or a
+  // role change away from exam_officer/college_officer would leave the
+  // old department/college sitting there, silently mis-scoping a queue.
+  // Where a new value IS provided for the field that still applies to
+  // the final role, it wins over whatever was already stored.
+  user.department = user.role === ROLES.EXAM_OFFICER ? (department !== undefined ? department : user.department) : undefined;
+  user.college = user.role === ROLES.COLLEGE_OFFICER ? (college !== undefined ? college : user.college) : undefined;
+
+  await user.save();
+  res.json({ success: true, data: user });
+});
+
+// PATCH /api/admin/users/:userId/reset-password — Super Admin sets a new
+// password directly, for the "user forgot their password" case (spec
+// addition: "help reset passwords in case they forget"). There's no
+// forgot-password/email-link flow in this system, so admin-set is the
+// only path — the admin then hands the new password to the user
+// out-of-band the same way a temporary password is handed over at
+// account creation.
+const resetUserPassword = asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) {
+    throw new AppError('newPassword must be at least 8 characters', 400);
+  }
+  const user = await User.findById(req.params.userId);
+  if (!user) throw new AppError('User not found', 404);
+
+  user.passwordHash = await User.hashPassword(newPassword);
+  await user.save();
+  res.json({ success: true, data: { id: user._id, email: user.email } });
+});
+
 // GET /api/admin/users — Super Admin directory: every user in the system,
 // grouped by role (spec addition: "super admin should be able to see all
 // the users categorized by their roles"). Sorted within each group by name
@@ -156,4 +223,13 @@ const getAuditLogs = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { createStaffUser, listPendingUsers, listAllUsers, approveUser, setUserStatus, getAuditLogs };
+module.exports = {
+  createStaffUser,
+  listPendingUsers,
+  listAllUsers,
+  approveUser,
+  setUserStatus,
+  updateUser,
+  resetUserPassword,
+  getAuditLogs,
+};
